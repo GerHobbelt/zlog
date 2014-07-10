@@ -44,7 +44,11 @@ struct zlog_rule_s {
 
 	char file_path[MAXLEN_PATH + 1];
 	zc_arraylist_t *dynamic_specs;
+#ifdef _MSC_VER
+	HANDLE static_fd;
+#else
 	int static_fd;
+#endif
 	dev_t static_dev;
 	ino_t static_ino;
 

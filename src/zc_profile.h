@@ -43,6 +43,17 @@ enum zc_profile_flag {
 		zc_profile_inner(ZC_ERROR, __FILE__, __LINE__, fmt, ## args)
 	#define zc_profile(flag, fmt, args...) \
 		zc_profile_inner(flag, __FILE__, __LINE__, fmt, ## args)
+
+#else
+
+#define zc_debug(fmt, ...) \
+	zc_profile_inner(ZC_DEBUG, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define zc_warn(fmt, ...) \
+	zc_profile_inner(ZC_WARN, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define zc_error(fmt, ...) \
+	zc_profile_inner(ZC_ERROR, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define zc_profile(flag, fmt, ...) \
+	zc_profile_inner(flag, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #endif
 
 

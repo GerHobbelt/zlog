@@ -328,3 +328,17 @@ int zc_hashtable_str_equal(const void *key1, const void *key2)
 {
 	return (STRCMP((const char *)key1, ==, (const char *)key2));
 }
+
+unsigned int zc_hashtable_tid_hash(void *ptid)
+{
+#if _MSC_VER
+	return (unsigned int) ((pthread_t *) ptid)->p;
+#else
+	return (unsigned int) *((pthread_t *) ptid);
+#endif
+}
+
+int zc_hashtable_tid_equal(void *ptid1, void *ptid2)
+{
+	return pthread_equal(*((pthread_t *) ptid1), *((pthread_t *) ptid2));
+}

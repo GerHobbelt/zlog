@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "conf.h"
 #include "category_table.h"
@@ -21,6 +22,10 @@
 #include "zc_defs.h"
 #include "rule.h"
 #include "version.h"
+
+#ifdef _MSC_VER
+#include <winsock2.h>
+#endif
 
 /*******************************************************************************/
 extern char *zlog_git_sha1;
@@ -119,6 +124,14 @@ int zlog_init(const char *confpath)
 	zc_debug("------zlog_init start------");
 	zc_debug("------compile time[%s %s], version[%s]------", __DATE__, __TIME__, ZLOG_VERSION);
 
+#ifdef _MSC_VER
+	{
+	  WSADATA wasd;
+	  WSAStartup(MAKEWORD(2,2),&wasd);
+	}
+#endif
+
+	zc_debug("------zlog_init locking------");
 	rc = pthread_rwlock_wrlock(&zlog_env_lock);
 	if (rc) {
 		zc_error("pthread_rwlock_wrlock fail, rc[%d]", rc);
@@ -129,7 +142,6 @@ int zlog_init(const char *confpath)
 		zc_error("already init, use zlog_reload pls");
 		goto err;
 	}
-
 
 	if (zlog_init_inner(confpath)) {
 		zc_error("zlog_init_inner[%s] fail", confpath);
