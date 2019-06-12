@@ -2,27 +2,31 @@
 # Copyright (C) 2010-2012 Hardy Simpson <HardySimpson1984@gmail.com>
 # This file is released under the LGPL 2.1 license, see the COPYING file
 
+# Platform-specific overrides
+SYSTEM ?= $(shell sh -c 'uname -s 2>/dev/null || echo not')
+compiler_platform := $(shell sh -c '$(CC) --version|grep -i apple')
+
 OBJ=    \
-  buf.o    \
-  category.o    \
-  category_table.o    \
-  conf.o    \
-  event.o    \
-  format.o    \
-  level.o    \
-  level_list.o    \
-  mdc.o    \
-  record.o    \
-  record_table.o    \
-  rotater.o    \
-  rule.o    \
-  spec.o    \
-  thread.o    \
-  zc_arraylist.o    \
-  zc_hashtable.o    \
-  zc_profile.o    \
-  zc_util.o    \
-  zlog.o
+  $(SYSTEM)/buf.o    \
+  $(SYSTEM)/category.o    \
+  $(SYSTEM)/category_table.o    \
+  $(SYSTEM)/conf.o    \
+  $(SYSTEM)/event.o    \
+  $(SYSTEM)/format.o    \
+  $(SYSTEM)/level.o    \
+  $(SYSTEM)/level_list.o    \
+  $(SYSTEM)/mdc.o    \
+  $(SYSTEM)/record.o    \
+  $(SYSTEM)/record_table.o    \
+  $(SYSTEM)/rotater.o    \
+  $(SYSTEM)/rule.o    \
+  $(SYSTEM)/spec.o    \
+  $(SYSTEM)/thread.o    \
+  $(SYSTEM)/zc_arraylist.o    \
+  $(SYSTEM)/zc_hashtable.o    \
+  $(SYSTEM)/zc_profile.o    \
+  $(SYSTEM)/zc_util.o    \
+  $(SYSTEM)/zlog.o
 BINS=zlog-chk-conf
 LIBNAME=libzlog
 
@@ -41,9 +45,9 @@ DYLIBSUFFIX=so
 STLIBSUFFIX=a
 DYLIB_MINOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR).$(ZLOG_MINOR)
 DYLIB_MAJOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR)
-DYLIBNAME=$(LIBNAME).$(DYLIBSUFFIX)
+DYLIBNAME=$(SYSTEM)/$(LIBNAME).$(DYLIBSUFFIX)
 DYLIB_MAKE_CMD=$(CC) -shared -Wl,-soname,$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
-STLIBNAME=$(LIBNAME).$(STLIBSUFFIX)
+STLIBNAME=$(SYSTEM)/$(LIBNAME).$(STLIBSUFFIX)
 STLIB_MAKE_CMD=ar rcs $(STLIBNAME)
 
 # Installation related variables
@@ -55,11 +59,7 @@ INSTALL_INCLUDE_PATH= $(PREFIX)/$(INCLUDE_PATH)
 INSTALL_LIBRARY_PATH= $(PREFIX)/$(LIBRARY_PATH)
 INSTALL_BINARY_PATH=  $(PREFIX)/$(BINARY_PATH)
 
-# Platform-specific overrides
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-compiler_platform := $(shell sh -c '$(CC) --version|grep -i apple')
-
-ifeq ($(uname_S),SunOS)
+ifeq ($(SYSTEM),SunOS)
 #  REAL_LDFLAGS+= -ldl -lnsl -lsocket
   DYLIB_MAKE_CMD=$(CC) -G -o $(DYLIBNAME) -h $(DYLIB_MINOR_NAME) $(LDFLAGS)
   INSTALL= cp -r
@@ -73,7 +73,7 @@ ifneq ($(compiler_platform),)
   DYLIB_MAKE_CMD=$(CC) -dynamiclib -install_name $(INSTALL_LIBRARY_PATH)/$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
 endif
 
-ifeq ($(uname_S),AIX)
+ifeq ($(SYSTEM),AIX)
   # this logic of minor major is not relevant on AIX or at least not widely used
   # not to mention dynamic linker .a preference...
   DYLIB_MAKE_CMD=$(CC) -shared -Wl,-G,-b64 -maix64 -pthread -o $(DYLIBNAME) $(LDFLAGS)
@@ -81,7 +81,13 @@ ifeq ($(uname_S),AIX)
   STLIB_MAKE_CMD=OBJECT_MODE=64 ar rcs $(STLIBNAME) $(DYLIB_MAJOR_NAME)
 endif
 
-all: $(DYLIBNAME) $(BINS)
+BUILD_DIR = $(SYSTEM)
+
+builddir: $(BUILD_DIR)
+$(BUILD_DIR):
+	mkdir -p $@
+
+all: builddir $(DYLIBNAME) $(BINS)
 
 # Deps (use make dep to generate this)
 buf.o: buf.c zc_defs.h zc_profile.h zc_arraylist.h zc_hashtable.h \
@@ -146,25 +152,26 @@ dynamic: $(DYLIBNAME)
 static: $(STLIBNAME)
 
 # Binaries:
-zlog-chk-conf: zlog-chk-conf.o $(STLIBNAME) $(DYLIBNAME)
-	$(CC) -o $@ zlog-chk-conf.o -L. -lzlog $(REAL_LDFLAGS)
+zlog-chk-conf: $(SYSTEM)/zlog-chk-conf.o $(STLIBNAME) $(DYLIBNAME)
+	$(CC) -o $@ $< -L$(SYSTEM) -lzlog $(REAL_LDFLAGS)
 
-.c.o:
-	$(CC) -std=c99 -pedantic -c $(REAL_CFLAGS) $<
+#.c.o:
+$(SYSTEM)/%.o: %.c
+	$(CC) -std=c99 -pedantic -c $(REAL_CFLAGS) -o $@ $<
 
 clean:
-	rm -rf $(DYLIBNAME) $(STLIBNAME) $(BINS) *.o *.gcda *.gcno *.gcov $(DYLIB_MINOR_NAME)
+	rm -rf $(DYLIBNAME) $(STLIBNAME) $(BINS) $(SYSTEM)/*.o *.gcda *.gcno *.gcov $(DYLIB_MINOR_NAME)
 
 dep:
 	$(CC) -MM *.c
 
 # Installation target
 
-ifeq ($(uname_S),SunOS)
+ifeq ($(SYSTEM),SunOS)
   INSTALL?= cp -r
 endif
 
-ifeq ($(uname_S),AIX)
+ifeq ($(SYSTEM),AIX)
   INSTALL?= cp -r
 endif
 
@@ -177,7 +184,7 @@ install: all $(DYLIBNAME) $(STLIBNAME)
 	$(INSTALL) zlog-chk-conf $(INSTALL_BINARY_PATH)
 	$(INSTALL) $(DYLIBNAME) $(INSTALL_LIBRARY_PATH)/$(DYLIB_MINOR_NAME)
 	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MINOR_NAME) $(DYLIB_MAJOR_NAME)
-	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MAJOR_NAME) $(DYLIBNAME)
+	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MAJOR_NAME) `basename $(DYLIBNAME)`
 	$(INSTALL) $(STLIBNAME) $(INSTALL_LIBRARY_PATH)
 
 32bit:
