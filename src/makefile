@@ -34,6 +34,7 @@ ZLOG_MAJOR=1
 ZLOG_MINOR=2
 
 # Fallback to gcc when $CC is not in $PATH.
+AR ?= ar
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 OPTIMIZATION?=-O2
 WARNINGS=-Wall -Wstrict-prototypes -fwrapv
@@ -48,7 +49,7 @@ DYLIB_MAJOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR)
 DYLIBNAME=$(SYSTEM)/$(LIBNAME).$(DYLIBSUFFIX)
 DYLIB_MAKE_CMD=$(CC) -shared -Wl,-soname,$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
 STLIBNAME=$(SYSTEM)/$(LIBNAME).$(STLIBSUFFIX)
-STLIB_MAKE_CMD=ar rcs $(STLIBNAME)
+STLIB_MAKE_CMD=$(AR) rcs $(STLIBNAME)
 
 # Installation related variables
 PREFIX?=/usr/local
