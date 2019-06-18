@@ -8,14 +8,16 @@
 
 #define _GNU_SOURCE // For distros like Centos for syscall interface
 
+#include <pthread.h>
+
 #include "fmacros.h"
+
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -95,7 +97,7 @@ zlog_event_t *zlog_event_new(int time_cache_count)
 #elif __APPLE__
     uint64_t tid64;
     pthread_threadid_np(NULL, &tid64);
-    a_event->tid = (pid_t)tid64;
+    a_event->ktid = (pid_t)tid64;
 #endif
 
 #if defined __linux__ || __APPLE__
