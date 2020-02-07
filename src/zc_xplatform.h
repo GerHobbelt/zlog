@@ -37,26 +37,35 @@
 #define STRNICMP(_a_,_C_,_b_,_n_) ( strncasecmp(_a_,_b_,_n_) _C_ 0 )
 
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
 
 /* Define zlog_fstat to fstat or fstat64() */
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
-#define zlog_fstat fstat64
 #define zlog_stat stat64
+#elif defined(_WIN32)
+#define zlog_stat _stat
+#define lstat(a,b) _stat(a,b)
 #else
-#define zlog_fstat fstat
 #define zlog_stat stat
 #endif
 
 /* Define zlog_fsync to fdatasync() in Linux and fsync() for all the rest */
-#ifdef __linux__
+#if defined __linux__
 #define zlog_fsync fdatasync
+#elif defined _WIN32
+#define zlog_fsync(a) (_flushall(), 0)
 #else
 #define zlog_fsync fsync
 #endif
 
-
+#if defined(_WIN32)
+#define localtime_r(a,b) localtime_s(b,a)
+#endif
 
 #endif

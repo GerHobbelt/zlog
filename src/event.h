@@ -10,7 +10,7 @@
 #define __zlog_event_h
 
 #include <sys/types.h>  /* for pid_t */
-#include <sys/time.h>   /* for struct timeval */
+#include <time.h>   /* for struct timeval */
 #include <pthread.h>    /* for pthread_t */
 #include <stdarg.h>     /* for va_list */
 #include "zc_defs.h"

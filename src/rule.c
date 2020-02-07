@@ -129,7 +129,7 @@ static int zlog_rule_output_static_file_single(zlog_rule_t * a_rule, zlog_thread
 	/* not so thread safe here, as multiple thread may ++fsync_count at the same time */
 	if (a_rule->fsync_period && ++a_rule->fsync_count >= a_rule->fsync_period) {
 		a_rule->fsync_count = 0;
-		if (fsync(a_rule->static_fd)) {
+		if (zlog_fsync(a_rule->static_fd)) {
 			zc_error("fsync[%d] fail, errno[%d]", a_rule->static_fd, errno);
 		}
 	}
@@ -184,7 +184,7 @@ static int zlog_rule_output_static_file_rotate(zlog_rule_t * a_rule, zlog_thread
 
 	if (a_rule->fsync_period && ++a_rule->fsync_count >= a_rule->fsync_period) {
 		a_rule->fsync_count = 0;
-		if (fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
+		if (zlog_fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
 	}
 
 	if (close(fd) < 0) {
@@ -198,7 +198,7 @@ static int zlog_rule_output_static_file_rotate(zlog_rule_t * a_rule, zlog_thread
 		return 0;
 	}
 
-	if (stat(a_rule->file_path, &info)) {
+	if (zlog_stat(a_rule->file_path, &info)) {
 		zc_warn("stat [%s] fail, errno[%d], maybe in rotating", a_rule->file_path, errno);
 		return 0;
 	}
@@ -264,7 +264,7 @@ static int zlog_rule_output_dynamic_file_single(zlog_rule_t * a_rule, zlog_threa
 
 	if (a_rule->fsync_period && ++a_rule->fsync_count >= a_rule->fsync_period) {
 		a_rule->fsync_count = 0;
-		if (fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
+		if (zlog_fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
 	}
 
 	if (close(fd) < 0) {
@@ -305,7 +305,7 @@ static int zlog_rule_output_dynamic_file_rotate(zlog_rule_t * a_rule, zlog_threa
 
 	if (a_rule->fsync_period && ++a_rule->fsync_count >= a_rule->fsync_period) {
 		a_rule->fsync_count = 0;
-		if (fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
+		if (zlog_fsync(fd)) zc_error("fsync[%d] fail, errno[%d]", fd, errno);
 	}
 
 	if (close(fd) < 0) {
@@ -319,7 +319,7 @@ static int zlog_rule_output_dynamic_file_rotate(zlog_rule_t * a_rule, zlog_threa
 		return 0;
 	}
 
-	if (stat(path, &info)) {
+	if (zlog_stat(path, &info)) {
 		zc_warn("stat [%s] fail, errno[%d], maybe in rotating", path, errno);
 		return 0;
 	}
