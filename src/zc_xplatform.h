@@ -64,8 +64,4 @@
 #define zlog_fsync fsync
 #endif
 
-#if defined(_WIN32)
-#define localtime_r(a,b) localtime_s(b,a)
-#endif
-
 #endif
