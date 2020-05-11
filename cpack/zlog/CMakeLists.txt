@@ -18,7 +18,7 @@ SET(CPACK_INSTALL_CMAKE_PROJECTS "${zlog_BINARY_DIR};zlog;zlog;/")
 # copy file to build directory.
 #===============================
 SET(CPACK_OUTPUT_CONFIG_FILE "${CMAKE_CURRENT_BINARY_DIR}/CPackConfig.cmake")
-configure_file(${CMAKE_HOME_DIRECTORY}/cpack/CPackConfig.cmake CPackConfig.cmake)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/../CPackConfig.cmake CPackConfig.cmake)
 
 file(COPY 
     .
