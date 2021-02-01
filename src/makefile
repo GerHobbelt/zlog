@@ -7,37 +7,54 @@ SYSTEM ?= $(shell sh -c 'uname -s 2>/dev/null || echo not')
 compiler_platform := $(shell sh -c '$(CC) --version|grep -i apple')
 
 OBJ=    \
-  $(SYSTEM)/buf.o    \
-  $(SYSTEM)/category.o    \
-  $(SYSTEM)/category_table.o    \
-  $(SYSTEM)/conf.o    \
-  $(SYSTEM)/event.o    \
-  $(SYSTEM)/format.o    \
-  $(SYSTEM)/level.o    \
-  $(SYSTEM)/level_list.o    \
-  $(SYSTEM)/mdc.o    \
-  $(SYSTEM)/record.o    \
-  $(SYSTEM)/record_table.o    \
-  $(SYSTEM)/rotater.o    \
-  $(SYSTEM)/rule.o    \
-  $(SYSTEM)/spec.o    \
-  $(SYSTEM)/thread.o    \
-  $(SYSTEM)/zc_arraylist.o    \
-  $(SYSTEM)/zc_hashtable.o    \
-  $(SYSTEM)/zc_profile.o    \
-  $(SYSTEM)/zc_util.o    \
-  $(SYSTEM)/zlog.o
+  buf.o    \
+  category.o    \
+  category_table.o    \
+  conf.o    \
+  event.o    \
+  format.o    \
+  level.o    \
+  level_list.o    \
+  mdc.o    \
+  record.o    \
+  record_table.o    \
+  rotater.o    \
+  rule.o    \
+  spec.o    \
+  thread.o    \
+  zc_arraylist.o    \
+  zc_hashtable.o    \
+  zc_profile.o    \
+  zc_util.o    \
+  lockfile.o \
+  zlog.o
 BINS=zlog-chk-conf
 LIBNAME=libzlog
 
 ZLOG_MAJOR=1
 ZLOG_MINOR=2
 
+
+# for mingw (cut the last part of the uname)
+UNAME := $(shell uname | cut -c -5)
+
+ifeq ($(UNAME), MINGW)
+   $(print compiling on mingw !!)
+  OBJ := $(OBJ) zlog_win.o
+endif
+
 # Fallback to gcc when $CC is not in $PATH.
 AR ?= ar
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 OPTIMIZATION?=-O2
+
+ifeq ($(UNAME), MINGW)
+#XXX: ignore warnings on mingw for now
 WARNINGS=-Wall -Wstrict-prototypes -fwrapv
+else
+WARNINGS=-Wall -Werror -Wstrict-prototypes -fwrapv
+endif
+
 DEBUG?= -g -ggdb
 REAL_CFLAGS=$(OPTIMIZATION) -fPIC -pthread $(CFLAGS) $(WARNINGS) $(DEBUG)
 REAL_LDFLAGS=$(LDFLAGS) -pthread
@@ -53,9 +70,10 @@ STLIB_MAKE_CMD=$(AR) rcs $(STLIBNAME)
 
 # Installation related variables
 PREFIX?=/usr/local
-INCLUDE_PATH=include
-LIBRARY_PATH=lib
+INCLUDE_PATH?=include
+LIBRARY_PATH?=lib
 BINARY_PATH=bin
+
 INSTALL_INCLUDE_PATH= $(PREFIX)/$(INCLUDE_PATH)
 INSTALL_LIBRARY_PATH= $(PREFIX)/$(LIBRARY_PATH)
 INSTALL_BINARY_PATH=  $(PREFIX)/$(BINARY_PATH)
@@ -82,13 +100,16 @@ ifeq ($(SYSTEM),AIX)
   STLIB_MAKE_CMD=OBJECT_MODE=64 ar rcs $(STLIBNAME) $(DYLIB_MAJOR_NAME)
 endif
 
-BUILD_DIR = $(SYSTEM)
+ifeq ($(UNAME), MINGW)
+   $(print compiling on mingw !!)
+   DYLIBSUFFIX=dll
+   STLIBSUFFIX=nogo
 
-builddir: $(BUILD_DIR)
-$(BUILD_DIR):
-	mkdir -p $@
+   REAL_CFLAGS  := $(REAL_CFLAGS) -I$(INSTALL_INCLUDE_PATH)
+   REAL_LDFLAGS := $(REAL_LDFLAGS) -L$(INSTALL_LIBRARY_PATH) -lws2_32 -lunixem
+endif
 
-all: builddir $(DYLIBNAME) $(BINS)
+all: $(DYLIBNAME) $(BINS)
 
 # Deps (use make dep to generate this)
 buf.o: buf.c zc_defs.h zc_profile.h zc_arraylist.h zc_hashtable.h \
@@ -134,10 +155,12 @@ zc_profile.o: zc_profile.c fmacros.h zc_profile.h zc_xplatform.h
 zc_util.o: zc_util.c zc_defs.h zc_profile.h zc_arraylist.h zc_hashtable.h \
  zc_xplatform.h zc_util.h
 zlog-chk-conf.o: zlog-chk-conf.c fmacros.h zlog.h
+lockfile.o: lockfile.c
 zlog.o: zlog.c fmacros.h conf.h zc_defs.h zc_profile.h zc_arraylist.h \
  zc_hashtable.h zc_xplatform.h zc_util.h format.h thread.h event.h buf.h \
  mdc.h rotater.h category_table.h category.h record_table.h \
  record.h rule.h
+zlog_win.o: zlog_win.c
 
 $(DYLIBNAME): $(OBJ)
 	$(DYLIB_MAKE_CMD) $(OBJ) $(REAL_LDFLAGS)

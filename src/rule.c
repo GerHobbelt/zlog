@@ -10,7 +10,11 @@
 
 #include <string.h>
 #include <ctype.h>
+#ifndef _WIN32
 #include <syslog.h>
+#else
+#include "zlog_win.h"
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -168,7 +172,7 @@ static int zlog_rule_output_static_file_rotate(zlog_rule_t * a_rule, zlog_thread
 		return -1;
 	}
 
-	fd = open(a_rule->file_path, 
+	fd = open(a_rule->file_path,
 		a_rule->file_open_flags | O_WRONLY | O_APPEND | O_CREAT, a_rule->file_perms);
 	if (fd < 0) {
 		zc_error("open file[%s] fail, errno[%d]", a_rule->file_path, errno);
@@ -213,7 +217,7 @@ static int zlog_rule_output_static_file_rotate(zlog_rule_t * a_rule, zlog_thread
 	/* file not so big, return */
 	if (info.st_size + len < a_rule->archive_max_size) return 0;
 
-	if (zlog_rotater_rotate(zlog_env_conf->rotater, 
+	if (zlog_rotater_rotate(zlog_env_conf->rotater,
 		a_rule->file_path, len,
 		zlog_rule_gen_archive_path(a_rule, a_thread),
 		a_rule->archive_max_size, a_rule->archive_max_count)
@@ -334,7 +338,7 @@ static int zlog_rule_output_dynamic_file_rotate(zlog_rule_t * a_rule, zlog_threa
 	/* file not so big, return */
 	if (info.st_size + len < a_rule->archive_max_size) return 0;
 
-	if (zlog_rotater_rotate(zlog_env_conf->rotater, 
+	if (zlog_rotater_rotate(zlog_env_conf->rotater,
 		path, len,
 		zlog_rule_gen_archive_path(a_rule, a_thread),
 		a_rule->archive_max_size, a_rule->archive_max_count)
@@ -365,6 +369,7 @@ static int zlog_rule_output_pipe(zlog_rule_t * a_rule, zlog_thread_t * a_thread)
 
 static int zlog_rule_output_syslog(zlog_rule_t * a_rule, zlog_thread_t * a_thread)
 {
+#ifndef _WIN32
 	zlog_level_t *a_level;
 
 	if (zlog_format_gen_msg(a_rule->format, a_thread)) {
@@ -381,6 +386,7 @@ static int zlog_rule_output_syslog(zlog_rule_t * a_rule, zlog_thread_t * a_threa
 	zlog_buf_seal(a_thread->msg_buf);
 	syslog(a_rule->syslog_facility | a_level->syslog_level,
 		"%s",  zlog_buf_str(a_thread->msg_buf));
+#endif
 	return 0;
 }
 
@@ -478,6 +484,7 @@ static int zlog_rule_output_stderr(zlog_rule_t * a_rule,
 /*******************************************************************************/
 static int syslog_facility_atoi(char *facility)
 {
+#ifndef _WIN32
 	/* guess no unix system will choose -187
 	 * as its syslog facility, so it is a safe return value
 	 */
@@ -503,6 +510,7 @@ static int syslog_facility_atoi(char *facility)
 	if (STRICMP(facility, ==, "LOG_SYSLOG")) return LOG_SYSLOG;
 		return LOG_AUTHPRIV;
 
+#endif
 	zc_error("wrong syslog facility[%s], must in LOG_LOCAL[0-7] or LOG_USER", facility);
 	return -187;
 }
@@ -672,7 +680,7 @@ zlog_rule_t *zlog_rule_new(char *line,
 
 	a_rule->level = zlog_level_list_atoi(levels, p);
 
-	/* level_bit is a bitmap represents which level can be output 
+	/* level_bit is a bitmap represents which level can be output
 	 * 32bytes, [0-255] levels, see level.c
 	 * which bit field is 1 means allow output and 0 not
 	 */
@@ -763,8 +771,10 @@ zlog_rule_t *zlog_rule_new(char *line,
 		a_rule->fsync_period = 0;
 
 		p = file_path + 1;
+#ifndef _WIN32
 		a_rule->file_open_flags = O_SYNC;
 		/* fall through */
+#endif
 	case '"' :
 		if (!p) p = file_path;
 
@@ -849,13 +859,17 @@ zlog_rule_t *zlog_rule_new(char *line,
 		break;
 	case '>' :
 		if (STRNCMP(file_path + 1, ==, "syslog", 6)) {
+			a_rule->output = zlog_rule_output_syslog;
 			a_rule->syslog_facility = syslog_facility_atoi(file_limit);
+#ifdef _WIN32
+            zc_error("syslog not support under windows!");
+#else
 			if (a_rule->syslog_facility == -187) {
 				zc_error("-187 get");
 				goto err;
 			}
-			a_rule->output = zlog_rule_output_syslog;
 			openlog(NULL, LOG_NDELAY | LOG_NOWAIT | LOG_PID, LOG_USER);
+#endif
 		} else if (STRNCMP(file_path + 1, ==, "stdout", 6)) {
 			a_rule->output = zlog_rule_output_stdout;
 		} else if (STRNCMP(file_path + 1, ==, "stderr", 6)) {
@@ -868,7 +882,7 @@ zlog_rule_t *zlog_rule_new(char *line,
 		break;
 	case '$' :
 		sscanf(file_path + 1, "%s", a_rule->record_name);
-			
+
 		if (file_limit) {  /* record path exists */
 			p = strchr(file_limit, '"');
 			if (!p) {
@@ -951,11 +965,13 @@ void zlog_rule_del(zlog_rule_t * a_rule)
 			zc_error("close fail, maybe cause by write, errno[%d]", errno);
 		}
 	}
+#ifndef _WIN32
 	if (a_rule->pipe_fp) {
 		if (pclose(a_rule->pipe_fp) == -1) {
 			zc_error("pclose fail, errno[%d]", errno);
 		}
 	}
+#endif
 	if (a_rule->archive_specs) {
 		zc_arraylist_del(a_rule->archive_specs);
 		a_rule->archive_specs = NULL;
@@ -1002,7 +1018,7 @@ int zlog_rule_output(zlog_rule_t * a_rule, zlog_thread_t * a_thread)
 int zlog_rule_is_wastebin(zlog_rule_t * a_rule)
 {
 	zc_assert(a_rule, -1);
-	
+
 	if (STRCMP(a_rule->category, ==, "!")) {
 		return 1;
 	}
@@ -1047,7 +1063,7 @@ int zlog_rule_set_record(zlog_rule_t * a_rule, zc_hashtable_t *records)
 {
 	zlog_record_t *a_record;
 
-	if (a_rule->output != zlog_rule_output_static_record 
+	if (a_rule->output != zlog_rule_output_static_record
 	&&  a_rule->output != zlog_rule_output_dynamic_record) {
 		return 0; /* fliter, may go through not record rule */
 	}
