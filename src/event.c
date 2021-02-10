@@ -106,7 +106,7 @@ zlog_event_t *zlog_event_new(int time_cache_count)
     pthread_threadid_np(NULL, &tid64);
     a_event->ktid = (pid_t)tid64;
 #elif _WIN32
-    a_event->ktid = GetCurrentThreadId();
+    a_event->ktid = pthread_self();
 #endif
 
 #if defined __linux__ || __APPLE__ || _WIN32
