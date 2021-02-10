@@ -109,7 +109,7 @@ zlog_event_t *zlog_event_new(int time_cache_count)
     a_event->ktid = GetCurrentThreadId();
 #endif
 
-#if defined __linux__ || __APPLE__
+#if defined __linux__ || __APPLE__ || _WIN32
 	a_event->ktid_str_len = sprintf(a_event->ktid_str, "%u", (unsigned int)a_event->ktid);
 #endif
 
