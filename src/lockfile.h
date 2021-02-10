@@ -15,8 +15,8 @@
 #define __ZLOG_LOCK_FILE_H__
 
 #ifdef _WIN32
-#include <Windows.h>
-#include <WinBase.h>
+#include <windows.h>
+#include <winbase.h>
 #define LOCK_FD HANDLE
 #define INVALID_LOCK_FD INVALID_HANDLE_VALUE
 #else //_WIN32

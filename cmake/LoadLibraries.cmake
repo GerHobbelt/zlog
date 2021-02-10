@@ -13,6 +13,7 @@ endif(Need_THREAD)
 
 if(Need_UNIXEM)
     find_package(Unixem)
+
     if (NOT UNIXEM_FOUND)
         message(FATAL_ERROR "unixem lib not found!")
     endif()

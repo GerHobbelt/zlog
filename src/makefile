@@ -63,9 +63,9 @@ DYLIBSUFFIX=so
 STLIBSUFFIX=a
 DYLIB_MINOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR).$(ZLOG_MINOR)
 DYLIB_MAJOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR)
-DYLIBNAME=$(SYSTEM)/$(LIBNAME).$(DYLIBSUFFIX)
+DYLIBNAME=$(LIBNAME).$(DYLIBSUFFIX)
 DYLIB_MAKE_CMD=$(CC) -shared -Wl,-soname,$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
-STLIBNAME=$(SYSTEM)/$(LIBNAME).$(STLIBSUFFIX)
+STLIBNAME=$(LIBNAME).$(STLIBSUFFIX)
 STLIB_MAKE_CMD=$(AR) rcs $(STLIBNAME)
 
 # Installation related variables
@@ -176,11 +176,11 @@ dynamic: $(DYLIBNAME)
 static: $(STLIBNAME)
 
 # Binaries:
-zlog-chk-conf: $(SYSTEM)/zlog-chk-conf.o $(STLIBNAME) $(DYLIBNAME)
-	$(CC) -o $@ $< -L$(SYSTEM) -lzlog $(REAL_LDFLAGS)
+zlog-chk-conf: zlog-chk-conf.o $(STLIBNAME) $(DYLIBNAME)
+	$(CC) -o $@ $< -L. -lzlog $(REAL_LDFLAGS)
 
 #.c.o:
-$(SYSTEM)/%.o: %.c
+%.o: %.c
 	$(CC) -std=c99 -pedantic -c $(REAL_CFLAGS) -o $@ $<
 
 clean:

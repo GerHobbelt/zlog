@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 2.8.5)
 
 message(STATUS "path : ${CMAKE_FIND_ROOT_PATH}")
 project(zlog)
-message(STATUS "path : ${CMAKE_FIND_ROOT_PATH}")
+message(STATUS "cmake find root path : ${CMAKE_FIND_ROOT_PATH}")
 
 set(CMAKE_MODULE_PATH ${zlog_SOURCE_DIR}/cmake)
 
@@ -22,15 +22,15 @@ SET(zlog_so_ver ${CPACK_PACKAGE_VERSION_MAJOR})
 
 #=======================================================
 
-message(STATUS "plateform : ${CMAKE_SYSTEM}")
+message(STATUS "platform : ${CMAKE_SYSTEM}")
 
 add_definitions("-g -Wall -Wstrict-prototypes")
-set(CMAKE_C_FLAGS "-std=c99 -pedantic -D_DEFAULT_SOURCE")
+set(CMAKE_C_FLAGS "-std=c99 -pedantic -D_DEFAULT_SOURCE -D  _POSIX_C_SOURCE")
 set(CMAKE_C_FLAGS_DEBUG "-ggdb3 -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
 
 if (WIN32)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINVER=0x0500 -D_WIN32_WINNT=0x0500 ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 ")
 endif()
 
 #=====================================================
@@ -61,6 +61,11 @@ endif()
 
 include(cmake/LoadLibraries.cmake)
 #=====================================================
+
+if (WIN32)
+    include_directories(${UNIXEM_INCLUDE_DIR})
+
+endif()
 
 #========================================================
 # sub dir

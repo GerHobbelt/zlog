@@ -1,8 +1,13 @@
 # FindUnixem.cmake
 # author lsm <lsm@skyblility.com>
 
+set(CMAKE_FIND_DEBUG_MODE TRUE)
+
 if (NOT UNIXEM_FOUND)
     if (NOT UNIXEM_INCLUDE_DIR)
+        message(STATUS "Finding UNIXEM_INCLUDE_DIR")
+        message(STATUS "CMAKE_STAGING_PREFIX = ${CMAKE_STAGING_PREFIX}")
+
         find_path(UNIXEM_INCLUDE_DIR
             NAMES
                 unixem/unixem.h

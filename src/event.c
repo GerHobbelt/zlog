@@ -22,12 +22,16 @@
 #include <sys/time.h>
 
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/syscall.h>
+#endif
 
 #include "zc_defs.h"
 #include "event.h"
 #ifdef _WIN32
-#include <Winsock2.h>
+#include <winsock2.h>
+#include <processthreadsapi.h>
 #endif
 
 void zlog_event_profile(zlog_event_t * a_event, int flag)
@@ -96,11 +100,13 @@ zlog_event_t *zlog_event_new(int time_cache_count)
 	a_event->tid_hex_str_len = sprintf(a_event->tid_hex_str, "%x", (unsigned int)a_event->tid);
 
 #ifdef __linux__
-	a_event->ktid = syscall(SYS_gettid);
+    a_event->ktid = syscall(SYS_gettid);
 #elif __APPLE__
     uint64_t tid64;
     pthread_threadid_np(NULL, &tid64);
     a_event->ktid = (pid_t)tid64;
+#elif _WIN32
+    a_event->ktid = GetCurrentThreadId();
 #endif
 
 #if defined __linux__ || __APPLE__
