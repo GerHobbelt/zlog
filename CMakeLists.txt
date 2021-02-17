@@ -25,9 +25,14 @@ SET(zlog_so_ver ${CPACK_PACKAGE_VERSION_MAJOR})
 message(STATUS "platform : ${CMAKE_SYSTEM}")
 
 add_definitions("-g -Wall -Wstrict-prototypes")
-set(CMAKE_C_FLAGS "-std=c99 -pedantic -D_DEFAULT_SOURCE -D  _POSIX_C_SOURCE")
+set(CMAKE_C_FLAGS "-std=c99 -pedantic -D_DEFAULT_SOURCE")
 set(CMAKE_C_FLAGS_DEBUG "-ggdb3 -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O2")
+
+# Some platform specific flags
+if (NOT APPLE)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_POSIX_C_SOURCE")
+endif()
 
 if (WIN32)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 ")
