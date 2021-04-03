@@ -23,7 +23,7 @@
 
 #include <sys/types.h>
 
-#ifndef _WIN32
+#ifdef __linux__
 #include <sys/syscall.h>
 #endif
 
@@ -104,7 +104,7 @@ zlog_event_t *zlog_event_new(int time_cache_count)
 #elif __APPLE__
     uint64_t tid64;
     pthread_threadid_np(NULL, &tid64);
-    a_event->ktid = (pthread_t)tid64;
+    a_event->ktid = (pid_t)tid64;
 #elif _WIN32
     a_event->ktid = pthread_self();
 #endif

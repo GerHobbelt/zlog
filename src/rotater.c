@@ -8,11 +8,12 @@
 
 #include <string.h>
 
-#ifdef _WIN32
-#include <unixem/glob.h>
-#endif
+#if defined _WIN32
+#include "unixem/glob.h"
+#include "unixem-mock/glob.h"
+#else
 #include <glob.h>
-
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -511,7 +512,7 @@ int zlog_rotater_rotate(zlog_rotater_t *a_rotater,
 		return 0;
 	}
 
-	if (stat(base_path, &info)) {
+	if (zlog_stat(base_path, &info)) {
 		rc = -1;
 		zc_error("stat [%s] fail, errno[%d]", base_path, errno);
 		goto exit;

@@ -36,6 +36,8 @@
 #define STATS_FILE lstat
 #endif
 
+#define DEF_TIME_FMT "%Y-%m-%d %H:%M:%S"
+
 /*******************************************************************************/
 #define ZLOG_CONF_DEFAULT_FORMAT "default = \"%D %V [%p:%F:%L] %m%n\""
 #define ZLOG_CONF_DEFAULT_RULE "*.*        >stdout"
@@ -470,9 +472,8 @@ static int zlog_conf_build_with_file(zlog_conf_t * a_conf)
 			 errno);
 		return -1;
 	}
-
 	localtime_r(&(a_stat.st_mtime), &local_time);
-	strftime(a_conf->mtime, sizeof(a_conf->mtime), "%Y-%m-%d %H:%M:%S", &local_time);
+	strftime(a_conf->mtime, sizeof(a_conf->mtime), DEF_TIME_FMT, &local_time);
 
 	if ((fp = fopen(a_conf->file, "r")) == NULL) {
 		zc_error("open configure file[%s] fail", a_conf->file);
