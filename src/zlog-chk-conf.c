@@ -18,7 +18,6 @@
 #include "zlog.h"
 #include "version.h"
 
-
 int main(int argc, char *argv[])
 {
 	int rc = 0;
@@ -47,7 +46,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	setenv("ZLOG_PROFILE_ERROR", "/dev/stderr", 1);
+	setenv("ZLOG_PROFILE_ERROR", "%tmp%/stderr", 1);
 	setenv("ZLOG_CHECK_FORMAT_RULE", "1", 1);
 
 	while (argc > 0) {

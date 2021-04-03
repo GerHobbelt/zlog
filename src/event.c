@@ -8,22 +8,31 @@
 
 #define _GNU_SOURCE // For distros like Centos for syscall interface
 
+#include <pthread.h>
+
 #include "fmacros.h"
+
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 
-#include <pthread.h>
 #include <unistd.h>
 #include <sys/time.h>
 
 #include <sys/types.h>
+
+#ifndef _WIN32
 #include <sys/syscall.h>
+#endif
 
 #include "zc_defs.h"
 #include "event.h"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <processthreadsapi.h>
+#endif
 
 void zlog_event_profile(zlog_event_t * a_event, int flag)
 {
@@ -91,14 +100,16 @@ zlog_event_t *zlog_event_new(int time_cache_count)
 	a_event->tid_hex_str_len = sprintf(a_event->tid_hex_str, "%x", (unsigned int)a_event->tid);
 
 #ifdef __linux__
-	a_event->ktid = syscall(SYS_gettid);
+    a_event->ktid = syscall(SYS_gettid);
 #elif __APPLE__
     uint64_t tid64;
     pthread_threadid_np(NULL, &tid64);
-    a_event->tid = (pthread_t)tid64;
+    a_event->ktid = (pthread_t)tid64;
+#elif _WIN32
+    a_event->ktid = pthread_self();
 #endif
 
-#if defined __linux__ || __APPLE__
+#if defined __linux__ || __APPLE__ || _WIN32
 	a_event->ktid_str_len = sprintf(a_event->ktid_str, "%u", (unsigned int)a_event->ktid);
 #endif
 

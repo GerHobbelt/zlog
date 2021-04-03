@@ -7,7 +7,12 @@
  */
 
 #include <string.h>
+
+#ifdef _WIN32
+#include <unixem/glob.h>
+#endif
 #include <glob.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -63,10 +68,11 @@ void zlog_rotater_del(zlog_rotater_t *a_rotater)
 {
 	zc_assert(a_rotater,);
 
-	if (a_rotater->lock_fd) {
-		if (close(a_rotater->lock_fd)) {
+	if (a_rotater->lock_fd != INVALID_LOCK_FD) {
+		if (!unlock_file(a_rotater->lock_fd)) {
 			zc_error("close fail, errno[%d]", errno);
 		}
+        a_rotater->lock_fd = INVALID_LOCK_FD;
 	}
 
 	if (pthread_mutex_destroy(&(a_rotater->lock_mutex))) {
@@ -80,7 +86,6 @@ void zlog_rotater_del(zlog_rotater_t *a_rotater)
 
 zlog_rotater_t *zlog_rotater_new(char *lock_file)
 {
-	int fd = 0;
 	zlog_rotater_t *a_rotater;
 
 	zc_assert(lock_file, NULL);
@@ -97,24 +102,12 @@ zlog_rotater_t *zlog_rotater_new(char *lock_file)
 		return NULL;
 	}
 
-	/* depends on umask of the user here
-	 * if user A create /tmp/zlog.lock 0600
-	 * user B is unable to read /tmp/zlog.lock
-	 * B has to choose another lock file except /tmp/zlog.lock
-	 */
-	fd = open(lock_file, O_RDWR | O_CREAT,
-		  S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-	if (fd < 0) {
-		zc_error("open file[%s] fail, errno[%d]", lock_file, errno);
-		goto err;
-	}
-
-	a_rotater->lock_fd = fd;
+	a_rotater->lock_fd = INVALID_LOCK_FD;
 	a_rotater->lock_file = lock_file;
 
 	//zlog_rotater_profile(a_rotater, ZC_DEBUG);
 	return a_rotater;
-err:
+
 	zlog_rotater_del(a_rotater);
 	return NULL;
 }
@@ -232,13 +225,13 @@ err:
 static int zlog_rotater_seq_files(zlog_rotater_t * a_rotater)
 {
 	int rc = 0;
-	int nwrite = 0;
+int nwrite = 0;
 	int i, j;
 	zlog_file_t *a_file;
 	char new_path[MAXLEN_PATH + 1];
 
 	zc_arraylist_foreach(a_rotater->files, i, a_file) {
-		if (a_rotater->max_count > 0 
+		if (a_rotater->max_count > 0
 			&& i < zc_arraylist_len(a_rotater->files) - a_rotater->max_count) {
 			/* unlink aa.0 aa.1 .. aa.(n-c) */
 			rc = unlink(a_file->path);
@@ -265,7 +258,7 @@ static int zlog_rotater_seq_files(zlog_rotater_t * a_rotater)
 	/* do the base_path mv  */
 	memset(new_path, 0x00, sizeof(new_path));
 	nwrite = snprintf(new_path, sizeof(new_path), "%.*s%0*d%s",
-		(int) a_rotater->num_start_len, a_rotater->glob_path, 
+		(int) a_rotater->num_start_len, a_rotater->glob_path,
 		a_rotater->num_width, j,
 		a_rotater->glob_path + a_rotater->num_end_len);
 	if (nwrite < 0 || nwrite >= sizeof(new_path)) {
@@ -311,7 +304,7 @@ static int zlog_rotater_roll_files(zlog_rotater_t * a_rotater)
 		/* begin rename aa.01.log -> aa.02.log , using i, as index in list maybe repeat */
 		memset(new_path, 0x00, sizeof(new_path));
 		nwrite = snprintf(new_path, sizeof(new_path), "%.*s%0*d%s",
-			(int) a_rotater->num_start_len, a_rotater->glob_path, 
+			(int) a_rotater->num_start_len, a_rotater->glob_path,
 			a_rotater->num_width, i + 1,
 			a_rotater->glob_path + a_rotater->num_end_len);
 		if (nwrite < 0 || nwrite >= sizeof(new_path)) {
@@ -328,7 +321,7 @@ static int zlog_rotater_roll_files(zlog_rotater_t * a_rotater)
 	/* do the base_path mv  */
 	memset(new_path, 0x00, sizeof(new_path));
 	nwrite = snprintf(new_path, sizeof(new_path), "%.*s%0*d%s",
-		(int) a_rotater->num_start_len, a_rotater->glob_path, 
+		(int) a_rotater->num_start_len, a_rotater->glob_path,
 		a_rotater->num_width, 0,
 		a_rotater->glob_path + a_rotater->num_end_len);
 	if (nwrite < 0 || nwrite >= sizeof(new_path)) {
@@ -405,7 +398,7 @@ static int zlog_rotater_parse_archive_path(zlog_rotater_t * a_rotater)
 		a_rotater->num_start_len = len;
 		a_rotater->num_end_len = len + 1;
 	}
-	
+
 	return 0;
 }
 
@@ -424,7 +417,7 @@ static void zlog_rotater_clean(zlog_rotater_t *a_rotater)
 	a_rotater->files = NULL;
 }
 
-static int zlog_rotater_lsmv(zlog_rotater_t *a_rotater, 
+static int zlog_rotater_lsmv(zlog_rotater_t *a_rotater,
 		char *base_path, char *archive_path, int archive_max_count)
 {
 	int rc = 0;
@@ -469,12 +462,6 @@ err:
 static int zlog_rotater_trylock(zlog_rotater_t *a_rotater)
 {
 	int rc;
-	struct flock fl;
-
-	fl.l_type = F_WRLCK;
-	fl.l_start = 0;
-	fl.l_whence = SEEK_SET;
-	fl.l_len = 0;
 
 	rc = pthread_mutex_trylock(&(a_rotater->lock_mutex));
 	if (rc == EBUSY) {
@@ -485,38 +472,22 @@ static int zlog_rotater_trylock(zlog_rotater_t *a_rotater)
 		return -1;
 	}
 
-	if (fcntl(a_rotater->lock_fd, F_SETLK, &fl)) {
-		if (errno == EAGAIN || errno == EACCES) {
-			/* lock by other process, that's right, go on */
-			/* EAGAIN on linux */
-			/* EACCES on AIX */
-			zc_warn("fcntl lock fail, as file is lock by other process");
-		} else {
-			zc_error("lock fd[%d] fail, errno[%d]", a_rotater->lock_fd, errno);
-		}
-		if (pthread_mutex_unlock(&(a_rotater->lock_mutex))) {
-			zc_error("pthread_mutex_unlock fail, errno[%d]", errno);
-		}
+    a_rotater->lock_fd = lock_file(a_rotater->lock_file);
+	if (a_rotater->lock_fd == INVALID_LOCK_FD) {
 		return -1;
 	}
-
 	return 0;
 }
 
 static int zlog_rotater_unlock(zlog_rotater_t *a_rotater)
 {
 	int rc = 0;
-	struct flock fl;
 
-	fl.l_type = F_UNLCK;
-	fl.l_start = 0;
-	fl.l_whence = SEEK_SET;
-	fl.l_len = 0;
-
-	if (fcntl(a_rotater->lock_fd, F_SETLK, &fl)) {
+    if (!unlock_file(a_rotater->lock_fd)) {
 		rc = -1;
-		zc_error("unlock fd[%s] fail, errno[%d]", a_rotater->lock_fd, errno);
-	}
+	} else {
+        a_rotater->lock_fd = INVALID_LOCK_FD;
+    }
 
 	if (pthread_mutex_unlock(&(a_rotater->lock_mutex))) {
 		rc = -1;

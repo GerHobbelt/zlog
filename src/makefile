@@ -2,6 +2,10 @@
 # Copyright (C) 2010-2012 Hardy Simpson <HardySimpson1984@gmail.com>
 # This file is released under the LGPL 2.1 license, see the COPYING file
 
+# Platform-specific overrides
+SYSTEM ?= $(shell sh -c 'uname -s 2>/dev/null || echo not')
+compiler_platform := $(shell sh -c '$(CC) --version|grep -i apple')
+
 OBJ=    \
   buf.o    \
   category.o    \
@@ -22,6 +26,7 @@ OBJ=    \
   zc_hashtable.o    \
   zc_profile.o    \
   zc_util.o    \
+  lockfile.o \
   zlog.o
 BINS=zlog-chk-conf
 LIBNAME=libzlog
@@ -29,10 +34,27 @@ LIBNAME=libzlog
 ZLOG_MAJOR=1
 ZLOG_MINOR=2
 
+
+# for mingw (cut the last part of the uname)
+UNAME := $(shell uname | cut -c -5)
+
+ifeq ($(UNAME), MINGW)
+   $(print compiling on mingw !!)
+  OBJ := $(OBJ) zlog_win.o
+endif
+
 # Fallback to gcc when $CC is not in $PATH.
+AR ?= ar
 CC:=$(shell sh -c 'type $(CC) >/dev/null 2>/dev/null && echo $(CC) || echo gcc')
 OPTIMIZATION?=-O2
+
+ifeq ($(UNAME), MINGW)
+#XXX: ignore warnings on mingw for now
 WARNINGS=-Wall -Wstrict-prototypes -fwrapv
+else
+WARNINGS=-Wall -Werror -Wstrict-prototypes -fwrapv
+endif
+
 DEBUG?= -g -ggdb
 REAL_CFLAGS=$(OPTIMIZATION) -fPIC -pthread $(CFLAGS) $(WARNINGS) $(DEBUG)
 REAL_LDFLAGS=$(LDFLAGS) -pthread
@@ -44,22 +66,19 @@ DYLIB_MAJOR_NAME=$(LIBNAME).$(DYLIBSUFFIX).$(ZLOG_MAJOR)
 DYLIBNAME=$(LIBNAME).$(DYLIBSUFFIX)
 DYLIB_MAKE_CMD=$(CC) -shared -Wl,-soname,$(DYLIB_MINOR_NAME) -o $(DYLIBNAME) $(LDFLAGS)
 STLIBNAME=$(LIBNAME).$(STLIBSUFFIX)
-STLIB_MAKE_CMD=ar rcs $(STLIBNAME)
+STLIB_MAKE_CMD=$(AR) rcs $(STLIBNAME)
 
 # Installation related variables
 PREFIX?=/usr/local
-INCLUDE_PATH=include
-LIBRARY_PATH=lib
+INCLUDE_PATH?=include
+LIBRARY_PATH?=lib
 BINARY_PATH=bin
+
 INSTALL_INCLUDE_PATH= $(PREFIX)/$(INCLUDE_PATH)
 INSTALL_LIBRARY_PATH= $(PREFIX)/$(LIBRARY_PATH)
 INSTALL_BINARY_PATH=  $(PREFIX)/$(BINARY_PATH)
 
-# Platform-specific overrides
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
-compiler_platform := $(shell sh -c '$(CC) --version|grep -i apple')
-
-ifeq ($(uname_S),SunOS)
+ifeq ($(SYSTEM),SunOS)
 #  REAL_LDFLAGS+= -ldl -lnsl -lsocket
   DYLIB_MAKE_CMD=$(CC) -G -o $(DYLIBNAME) -h $(DYLIB_MINOR_NAME) $(LDFLAGS)
   INSTALL= cp -r
@@ -74,12 +93,21 @@ ifneq ($(compiler_platform),)
   REAL_CFLAGS+= -D_DARWIN_C_SOURCE
 endif
 
-ifeq ($(uname_S),AIX)
+ifeq ($(SYSTEM),AIX)
   # this logic of minor major is not relevant on AIX or at least not widely used
   # not to mention dynamic linker .a preference...
   DYLIB_MAKE_CMD=$(CC) -shared -Wl,-G,-b64 -maix64 -pthread -o $(DYLIBNAME) $(LDFLAGS)
   REAL_CFLAGS+= -maix64
   STLIB_MAKE_CMD=OBJECT_MODE=64 ar rcs $(STLIBNAME) $(DYLIB_MAJOR_NAME)
+endif
+
+ifeq ($(UNAME), MINGW)
+   $(print compiling on mingw !!)
+   DYLIBSUFFIX=dll
+   STLIBSUFFIX=nogo
+
+   REAL_CFLAGS  := $(REAL_CFLAGS) -I$(INSTALL_INCLUDE_PATH)
+   REAL_LDFLAGS := $(REAL_LDFLAGS) -L$(INSTALL_LIBRARY_PATH) -lws2_32 -lunixem
 endif
 
 all: $(DYLIBNAME) $(BINS)
@@ -128,10 +156,12 @@ zc_profile.o: zc_profile.c fmacros.h zc_profile.h zc_xplatform.h
 zc_util.o: zc_util.c zc_defs.h zc_profile.h zc_arraylist.h zc_hashtable.h \
  zc_xplatform.h zc_util.h
 zlog-chk-conf.o: zlog-chk-conf.c fmacros.h zlog.h
+lockfile.o: lockfile.c
 zlog.o: zlog.c fmacros.h conf.h zc_defs.h zc_profile.h zc_arraylist.h \
  zc_hashtable.h zc_xplatform.h zc_util.h format.h thread.h event.h buf.h \
  mdc.h rotater.h category_table.h category.h record_table.h \
  record.h rule.h
+zlog_win.o: zlog_win.c
 
 $(DYLIBNAME): $(OBJ)
 	$(DYLIB_MAKE_CMD) $(OBJ) $(REAL_LDFLAGS)
@@ -148,10 +178,11 @@ static: $(STLIBNAME)
 
 # Binaries:
 zlog-chk-conf: zlog-chk-conf.o $(STLIBNAME) $(DYLIBNAME)
-	$(CC) -o $@ zlog-chk-conf.o -L. -lzlog $(REAL_LDFLAGS)
+	$(CC) -o $@ $< -L. -lzlog $(REAL_LDFLAGS)
 
-.c.o:
-	$(CC) -std=c99 -pedantic -c $(REAL_CFLAGS) $<
+#.c.o:
+%.o: %.c
+	$(CC) -std=c99 -pedantic -c $(REAL_CFLAGS) -o $@ $<
 
 clean:
 	rm -rf $(DYLIBNAME) $(STLIBNAME) $(BINS) *.o *.gcda *.gcno *.gcov $(DYLIB_MINOR_NAME) $(DYLIB_MAJOR_NAME)
@@ -161,24 +192,24 @@ dep:
 
 # Installation target
 
-ifeq ($(uname_S),SunOS)
+ifeq ($(SYSTEM),SunOS)
   INSTALL?= cp -r
 endif
 
-ifeq ($(uname_S),AIX)
+ifeq ($(SYSTEM),AIX)
   INSTALL?= cp -r
 endif
 
 
 INSTALL?= cp -a
 
-install: $(DYLIBNAME) $(STLIBNAME)
+install: all $(DYLIBNAME) $(STLIBNAME)
 	mkdir -p $(INSTALL_INCLUDE_PATH) $(INSTALL_LIBRARY_PATH) $(INSTALL_BINARY_PATH)
 	$(INSTALL) zlog.h $(INSTALL_INCLUDE_PATH)
 	$(INSTALL) zlog-chk-conf $(INSTALL_BINARY_PATH)
 	$(INSTALL) $(DYLIBNAME) $(INSTALL_LIBRARY_PATH)/$(DYLIB_MINOR_NAME)
 	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MINOR_NAME) $(DYLIB_MAJOR_NAME)
-	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MAJOR_NAME) $(DYLIBNAME)
+	cd $(INSTALL_LIBRARY_PATH) && ln -sf $(DYLIB_MAJOR_NAME) `basename $(DYLIBNAME)`
 	$(INSTALL) $(STLIBNAME) $(INSTALL_LIBRARY_PATH)
 
 32bit:
