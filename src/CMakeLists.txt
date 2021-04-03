@@ -19,34 +19,11 @@ target_link_libraries(zlog
 
 if (WIN32)
     target_link_libraries(zlog
-        ${UNIXEM_LIBRARY}
         # Ws2_32
         )
 endif()
 
 set_target_properties(zlog PROPERTIES VERSION ${zlog_ver} SOVERSION ${zlog_so_ver})
-
-message(STATUS "Linking ${UNIXEM_LIBRARY} ... ")
-add_library(zlog_o
-    OBJECT
-    ${SRCS}
-    )
-
-add_library(zlog_s STATIC $<TARGET_OBJECTS:zlog_o>)
-
-target_link_libraries(zlog_s
-    ${CMAKE_THREAD_PREFER_PTHREAD}
-    )
-
-if (WIN32)
-    target_link_libraries(zlog_s
-        PUBLIC
-        ${UNIXEM_LIBRARY}
-        # Ws2_32
-        )
-endif()
-
-set_target_properties(zlog_s PROPERTIES OUTPUT_NAME zlog)
 
 #================================================================
 # generate zlog-chk-conf

@@ -1,7 +1,7 @@
 # create by lsm <lsm@skybility.com>
 # cmake
 
-cmake_minimum_required(VERSION 2.8.5)
+cmake_minimum_required(VERSION 3.1.5)
 
 message(STATUS "path : ${CMAKE_FIND_ROOT_PATH}")
 project(zlog)
@@ -61,7 +61,7 @@ link_directories(${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 # library depend.
 set(Need_THREAD 1)
 if (WIN32)
-    set(Need_UNIXEM 1)
+    set(Need_UNIXEM 0)
 endif()
 
 include(cmake/LoadLibraries.cmake)
@@ -69,7 +69,6 @@ include(cmake/LoadLibraries.cmake)
 
 if (WIN32)
     include_directories(${UNIXEM_INCLUDE_DIR})
-
 endif()
 
 #========================================================

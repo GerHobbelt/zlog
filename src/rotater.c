@@ -8,10 +8,7 @@
 
 #include <string.h>
 
-#if defined _WIN32
-#include "unixem/glob.h"
-#include "unixem-mock/glob.h"
-#else
+#if !defined _WIN32
 #include <glob.h>
 #endif
 #include <stdio.h>
@@ -20,9 +17,13 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#if !defined _WIN32
 #include <unistd.h>
+#endif
 #include <fcntl.h>
+#if !defined _WIN32
 #include <pthread.h>
+#endif
 
 #include "zc_defs.h"
 #include "rotater.h"
